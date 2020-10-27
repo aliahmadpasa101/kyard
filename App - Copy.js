@@ -1,0 +1,165 @@
+//App.js
+import React, {Component} from 'react';
+import { Platform, StatusBar, StyleSheet, View, AsyncStorage } from 'react-native';
+import { SplashScreen } from 'expo';
+import * as Font from 'expo-font';
+import { Ionicons } from '@expo/vector-icons';
+import 'react-native-gesture-handler';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
+import FlashMessage from "react-native-flash-message";
+
+import Home from './screens/Home.js';
+import SignIn from './screens/Signin.js';
+import Otp from './screens/Otp.js';
+
+const Stack = createStackNavigator();
+
+export default function App(props) {
+  
+  const [isLoadingComplete, setLoadingComplete] = React.useState(false);
+  const [initialNavigationState, setInitialNavigationState] = React.useState();
+  const containerRef = React.useRef();
+  // let userToken ='';
+  
+  const AuthContext = React.createContext();
+
+  const [state, dispatch] = React.useReducer(
+    (prevState, action) => {
+      switch (action.type) {
+        case 'RESTORE_TOKEN':
+          return {
+            ...prevState,
+            userToken: action.token,
+            isLoading: false,
+          };
+        case 'SignIn':
+          return {
+            ...prevState,
+            isSignout: false,
+            userToken: action.token,
+          };
+        case 'SIGN_OUT':
+          return {
+            ...prevState,
+            isSignout: true,
+            userToken: null,
+          };
+      }
+    },
+    {
+      isLoading: true,
+      isSignout: false,
+      userToken: null,
+    }
+  );
+    
+    // Load any resources or data that we need prior to rendering the app
+    React.useEffect(() => {
+      async function loadResourcesAndDataAsync() {
+        try {
+          SplashScreen.preventAutoHide();
+
+          // Load our initial navigation state
+          setInitialNavigationState(await getInitialState());
+
+          // Load fonts
+          await Font.loadAsync({
+            ...Ionicons.font,
+            'space-mono': require('./assets/fonts/SpaceMono-Regular.ttf'),
+          });
+        } catch (e) {
+          // We might want to provide this error information to an error reporting service
+          console.warn(e);
+        } finally {
+          setLoadingComplete(true);
+          SplashScreen.hide();
+        }
+      }
+
+       // Fetch the token from storage then navigate to our appropriate place
+      const bootstrapAsync = async () => {
+        let userToken;
+
+        try {
+          userToken = await AsyncStorage.getItem('userToken');
+        } catch (e) {
+          // Restoring token failed
+        }
+
+        // After restoring token, we may need to validate it in production apps
+
+        // This will switch to the App screen or Auth screen and this loading
+        // screen will be unmounted and thrown away.
+        dispatch({ type: 'RESTORE_TOKEN', token: userToken });
+      };
+
+      loadResourcesAndDataAsync();
+      bootstrapAsync();
+    }, []);
+
+
+    const authContext = React.useMemo(
+      () => ({
+        signIn: async data => {
+            console.log(userToken);
+          // In a production app, we need to send some data (usually username, password) to server and get a token
+          // We will also need to handle errors if sign in failed
+          // After getting token, we need to persist the token using `AsyncStorage`
+          // In the example, we'll use a dummy token
+          userToken = await AsyncStorage.getItem('userToken');
+          dispatch({ type: 'SignIn', token: userToken });
+        },
+        signOut: () => dispatch({ type: 'SIGN_OUT', token: null }),
+        signUp: async data => {
+          // In a production app, we need to send user data to server and get a token
+          // We will also need to handle errors if sign up failed
+          // After getting token, we need to persist the token using `AsyncStorage`
+          // In the example, we'll use a dummy token
+          userToken = null;
+          userToken = await AsyncStorage.getItem('userToken');
+          dispatch({ type: 'SignIn', token: userToken });
+        },
+      }),
+      []
+    );
+
+
+    
+    if (!isLoadingComplete && !props.skipLoadingScreen) {
+      return null;
+    } else 
+    {
+
+      console.log(state.userToken);
+      var check_state = false;
+      (state.userToken) ? (check_state = 'true'):(check_state = 'false')
+      console.log(check_state);
+      if(check_state){
+        (state.userToken != 'undefined') ? (check_state = 'true'):(check_state = 'false')
+      }
+      console.dir(check_state);
+    return (
+      <NavigationContainer value={authContext}>
+        <Stack.Navigator>
+          {
+              check_state == 'true' ? (
+              <>
+                  <Stack.Screen name="Home" component={Home} options={{title: 'Search for Vehicle',headerLeft: null}} />
+                  <Stack.Screen name="SignIn" component={SignIn}  options={{title: 'Signin with Mobile Number',headerLeft: null}} />
+              </>
+              ) : (
+              <>
+              <Stack.Screen name="SignIn" component={SignIn} options={{title: 'Signin with Mobile Number',headerLeft: null}} />
+              <Stack.Screen name="Otp" component={Otp} options={{title: 'Enter OTP for Login'}} />
+              <Stack.Screen name="Home" component={Home} options={{title: 'Search for Vehicle',headerLeft: null}} />
+              </>
+              )
+            }
+          </Stack.Navigator>
+          <FlashMessage position="top" />
+      </NavigationContainer>
+    );
+  }
+  
+}
